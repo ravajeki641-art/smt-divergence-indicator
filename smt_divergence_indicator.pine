@@ -1,24 +1,27 @@
 //@version=5
 indicator("SMT Divergence - Reversal & Continuation Only", overlay=true, max_labels_count=100)
 
-// ========= INPUT =========
-swingLen        = input.int(5, "Swing Length", minval=2)
-refSymbol       = input.symbol("NQ1!", "Correlated Asset")
-minBars         = input.int(10, "Min Bars Between Pivots", minval=1)
-showLabels      = input.bool(true, "Show Labels")
-showBg          = input.bool(true, "Highlight Background")
+// ==================== INPUT ====================
+swingLen      = input.int(5, "Swing Length", minval=2)
+refSymbol     = input.symbol("NQ1!", "Correlated Asset")
+minBars       = input.int(10, "Min Bars Between Pivots", minval=1)
+showLabels    = input.bool(true, "Show Labels")
+showBg        = input.bool(true, "Highlight Background")
 
-// ========= SECURITY DATA =========
+// ==================== REQUEST SECURITY ====================
 refHigh = request.security(refSymbol, timeframe.period, high)
 refLow  = request.security(refSymbol, timeframe.period, low)
 
-// ========= PIVOT DETECTION =========
-mainPivotHigh = ta.pivothigh(high, swingLen, swingLen)
+// ==================== PIVOT CHECK ====================
+// Main chart
 mainPivotLow  = ta.pivotlow(low, swingLen, swingLen)
-refPivotHigh  = ta.pivothigh(refHigh, swingLen, swingLen)
-refPivotLow   = ta.pivotlow(refLow, swingLen, swingLen)
+mainPivotHigh = ta.pivothigh(high, swingLen, swingLen)
 
-// Track last pivot bar index
+// Correlated asset
+refPivotLow  = ta.pivotlow(refLow, swingLen, swingLen)
+refPivotHigh = ta.pivothigh(refHigh, swingLen, swingLen)
+
+// ==================== LAST PIVOT STATE ====================
 var int lastMainLowBar = na
 var int lastMainHighBar = na
 var int lastRefLowBar = na
@@ -29,7 +32,6 @@ var float lastMainHighVal = na
 var float lastRefLowVal = na
 var float lastRefHighVal = na
 
-// Update when pivot detected
 if mainPivotLow != na
     lastMainLowBar := bar_index
     lastMainLowVal := low[swingLen]
@@ -46,122 +48,46 @@ if refPivotHigh != na
     lastRefHighBar := bar_index
     lastRefHighVal := refHigh[swingLen]
 
-// ========= SMT LOGIC - HANYA REVERSAL & CONTINUATION =========
+// ==================== SMT LOGIC - ONLY VALID BIAS ====================
 
-// BULLISH REVERSAL: 
-// - Main chart membuat swing low BARU lebih rendah
-// - Ref asset SUDAH membuat swing low duluan (lebih awal)
-// - Bias reversal (main belum confirm dengan ref)
-bullishReversal = not na(lastMainLowVal) and not na(lastRefLowVal) and 
-                  lastMainLowVal < lastRefLowVal and 
-                  lastMainLowBar > lastRefLowBar and
-                  (bar_index - lastMainLowBar) <= minBars
+// Bullish Reversal:
+bullishReversal = not na(lastMainLowVal) and not na(lastRefLowVal) and
+                 lastMainLowVal < lastRefLowVal and
+                 lastMainLowBar > lastRefLowBar and
+                 (bar_index - lastMainLowBar) <= minBars
 
-// BULLISH CONTINUATION:
-// - Ref asset membuat swing low DULUAN lebih rendah
-// - Main chart KEMUDIAN membuat swing low lebih rendah juga (mengikuti)
-// - Bias continuation (follow the leader)
-bullishContinuation = not na(lastMainLowVal) and not na(lastRefLowVal) and 
-                      lastMainLowVal < lastRefLowVal and 
-                      lastMainLowBar < lastRefLowBar and
-                      (bar_index - lastRefLowBar) <= minBars
+// Bullish Continuation:
+bullishContinuation = not na(lastMainLowVal) and not na(lastRefLowVal) and
+                     lastMainLowVal < lastRefLowVal and
+                     lastMainLowBar < lastRefLowBar and
+                     (bar_index - lastRefLowBar) <= minBars
 
-// BEARISH REVERSAL:
-// - Main chart membuat swing high BARU lebih tinggi
-// - Ref asset SUDAH membuat swing high duluan (lebih awal)
-// - Bias reversal (main belum confirm dengan ref)
-bearishReversal = not na(lastMainHighVal) and not na(lastRefHighVal) and 
-                  lastMainHighVal > lastRefHighVal and 
-                  lastMainHighBar > lastRefHighBar and
-                  (bar_index - lastMainHighBar) <= minBars
+// Bearish Reversal:
+bearishReversal = not na(lastMainHighVal) and not na(lastRefHighVal) and
+                 lastMainHighVal > lastRefHighVal and
+                 lastMainHighBar > lastRefHighBar and
+                 (bar_index - lastMainHighBar) <= minBars
 
-// BEARISH CONTINUATION:
-// - Ref asset membuat swing high DULUAN lebih tinggi
-// - Main chart KEMUDIAN membuat swing high lebih tinggi juga (mengikuti)
-// - Bias continuation (follow the leader)
-bearishContinuation = not na(lastMainHighVal) and not na(lastRefHighVal) and 
-                      lastMainHighVal > lastRefHighVal and 
-                      lastMainHighBar < lastRefHighBar and
-                      (bar_index - lastRefHighBar) <= minBars
+// Bearish Continuation:
+bearishContinuation = not na(lastMainHighVal) and not na(lastRefHighVal) and
+                     lastMainHighVal > lastRefHighVal and
+                     lastMainHighBar < lastRefHighBar and
+                     (bar_index - lastRefHighBar) <= minBars
 
-// ========= PLOT SHAPES =========
-plotshape(showLabels and bullishReversal, 
-          title="Bullish Reversal SMT", 
-          style=shape.labelup, 
-          location=location.belowbar, 
-          color=color.new(color.lime, 0), 
-          text="BULLISH\nREVERSAL", 
-          textcolor=color.white, 
-          size=size.small)
+// ==================== LABELS ====================
+plotshape(showLabels and bullishReversal, title="Bullish Reversal", style=shape.labelup, location=location.belowbar, color=color.new(color.lime, 0), text="BULLISH\nREVERSAL", textcolor=color.white, size=size.small)
+plotshape(showLabels and bullishContinuation, title="Bullish Continuation", style=shape.labelup, location=location.belowbar, color=color.new(color.blue, 0), text="BULLISH\nCONT", textcolor=color.white, size=size.small)
+plotshape(showLabels and bearishReversal, title="Bearish Reversal", style=shape.labeldown, location=location.abovebar, color=color.new(color.red, 0), text="BEARISH\nREVERSAL", textcolor=color.white, size=size.small)
+plotshape(showLabels and bearishContinuation, title="Bearish Continuation", style=shape.labeldown, location=location.abovebar, color=color.new(color.orange, 0), text="BEARISH\nCONT", textcolor=color.white, size=size.small)
 
-plotshape(showLabels and bullishContinuation, 
-          title="Bullish Continuation SMT", 
-          style=shape.labelup, 
-          location=location.belowbar, 
-          color=color.new(color.blue, 0), 
-          text="BULLISH\nCONT", 
-          textcolor=color.white, 
-          size=size.small)
+// ==================== BG HIGHLIGHT ====================
+bgcolor(showBg and bullishReversal ? color.new(color.lime, 88) :
+       showBg and bullishContinuation ? color.new(color.blue, 88) :
+       showBg and bearishReversal ? color.new(color.red, 88) :
+       showBg and bearishContinuation ? color.new(color.orange, 88) : na)
 
-plotshape(showLabels and bearishReversal, 
-          title="Bearish Reversal SMT", 
-          style=shape.labeldown, 
-          location=location.abovebar, 
-          color=color.new(color.red, 0), 
-          text="BEARISH\nREVERSAL", 
-          textcolor=color.white, 
-          size=size.small)
-
-plotshape(showLabels and bearishContinuation, 
-          title="Bearish Continuation SMT", 
-          style=shape.labeldown, 
-          location=location.abovebar, 
-          color=color.new(color.orange, 0), 
-          text="BEARISH\nCONT", 
-          textcolor=color.white, 
-          size=size.small)
-
-// ========= BACKGROUND HIGHLIGHT =========
-bgcolor(showBg and bullishReversal ? color.new(color.lime, 85) :
-        showBg and bullishContinuation ? color.new(color.blue, 85) :
-        showBg and bearishReversal ? color.new(color.red, 85) :
-        showBg and bearishContinuation ? color.new(color.orange, 85) : na)
-
-// ========= ALERTS =========
-alertcondition(bullishReversal, title="Bullish Reversal SMT", message="⬆️ BULLISH REVERSAL SMT - Potensi Reversal Bullish Detected!")
-alertcondition(bullishContinuation, title="Bullish Continuation SMT", message="⬆️ BULLISH CONTINUATION SMT - Potensi Continuation Bullish Detected!")
-alertcondition(bearishReversal, title="Bearish Reversal SMT", message="⬇️ BEARISH REVERSAL SMT - Potensi Reversal Bearish Detected!")
-alertcondition(bearishContinuation, title="Bearish Continuation SMT", message="⬇️ BEARISH CONTINUATION SMT - Potensi Continuation Bearish Detected!")
-
-// ========= INFO TABLE =========
-var table infoTable = table.new(position.top_right, 2, 5, border_color=color.gray, border_width=1)
-
-if barstate.islast
-    table.cell(infoTable, 0, 0, "SMT Status", bgcolor=color.navy, text_color=color.white, text_size=size.small)
-    table.cell(infoTable, 1, 0, "", bgcolor=color.navy, text_color=color.white, text_size=size.small)
-
-    status = bullishReversal ? "✓ Bullish Reversal" : 
-             bullishContinuation ? "✓ Bullish Continuation" : 
-             bearishReversal ? "✓ Bearish Reversal" : 
-             bearishContinuation ? "✓ Bearish Continuation" : 
-             "⏸ No SMT Signal"
-
-    statusColor = bullishReversal ? color.new(color.lime, 60) :
-                  bullishContinuation ? color.new(color.blue, 60) :
-                  bearishReversal ? color.new(color.red, 60) :
-                  bearishContinuation ? color.new(color.orange, 60) :
-                  color.new(color.gray, 60)
-
-    table.cell(infoTable, 0, 1, "Current", bgcolor=color.navy, text_color=color.white, text_size=size.small)
-    table.cell(infoTable, 1, 1, status, bgcolor=statusColor, text_color=color.white, text_size=size.small)
-
-    table.cell(infoTable, 0, 2, "Main Chart", bgcolor=color.navy, text_color=color.white, text_size=size.small)
-    mainInfo = "Low: " + str.tostring(lastMainLowVal, "#.##") + " @ bar " + str.tostring(lastMainLowBar)
-    table.cell(infoTable, 1, 2, mainInfo, bgcolor=color.new(color.gray, 70), text_color=color.white, text_size=size.small)
-
-    table.cell(infoTable, 0, 3, "Correlated", bgcolor=color.navy, text_color=color.white, text_size=size.small)
-    refInfo = "Low: " + str.tostring(lastRefLowVal, "#.##") + " @ bar " + str.tostring(lastRefLowBar)
-    table.cell(infoTable, 1, 3, refInfo, bgcolor=color.new(color.gray, 70), text_color=color.white, text_size=size.small)
-
-    table.cell(infoTable, 0, 4, "Asset", bgcolor=color.navy, text_color=color.white, text_size=size.small)
-    table.cell(infoTable, 1, 4, refSymbol, bgcolor=color.new(color.gray, 70), text_color=color.white, text_size=size.small)
+// ==================== ALERTS ====================
+alertcondition(bullishReversal, title="Bullish Reversal SMT", message="BULLISH REVERSAL SMT detected")
+alertcondition(bullishContinuation, title="Bullish Continuation SMT", message="BULLISH CONTINUATION SMT detected")
+alertcondition(bearishReversal, title="Bearish Reversal SMT", message="BEARISH REVERSAL SMT detected")
+alertcondition(bearishContinuation, title="Bearish Continuation SMT", message="BEARISH CONTINUATION SMT detected")
