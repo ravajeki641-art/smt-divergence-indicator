@@ -1,5 +1,5 @@
 //@version=5
-indicator("SMT Divergence - Reversal & Continuation Only", overlay=true, max_labels_count=100)
+indicator("Nox ★", overlay=true, max_labels_count=100)
 
 // ==================== INPUT ====================
 swingLen      = input.int(5, "Swing Length", minval=2)
