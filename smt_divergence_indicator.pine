@@ -1,0 +1,53 @@
+//@version=5
+indicator("SMT Divergence Reversal & Continuation", overlay=true, max_labels_count=100, max_boxes_count=100)
+
+swingLen      = input.int(5, "Swing Length", minval=2)
+compareSymbol = input.symbol("NQ1!", "Correlated Asset")
+showLabels    = input.bool(true, "Show Labels")
+showAlerts    = input.bool(true, "Show Alert")
+
+symHigh = request.security(compareSymbol, timeframe.period, high)
+symLow  = request.security(compareSymbol, timeframe.period, low)
+
+f_pivot_high(src, len) =>
+    p = ta.pivothigh(src, len, len)
+    v = ta.valuewhen(p != na, p, 0)
+    idx = ta.valuewhen(p != na, bar_index, 0)
+    [v, idx]
+
+f_pivot_low(src, len) =>
+    p = ta.pivotlow(src, len, len)
+    v = ta.valuewhen(p != na, p, 0)
+    idx = ta.valuewhen(p != na, bar_index, 0)
+    [v, idx]
+
+[aHighVal, aHighIdx] = f_pivot_high(high, swingLen)
+[aLowVal, aLowIdx]   = f_pivot_low(low, swingLen)
+[bHighVal, bHighIdx] = f_pivot_high(symHigh, swingLen)
+[bLowVal, bLowIdx]   = f_pivot_low(symLow, swingLen)
+
+bullishSMTReversal = not na(aLowVal) and not na(bLowVal) and aLowVal < bLowVal and aLowIdx > bLowIdx
+bullishSMTContinuation = not na(aLowVal) and not na(bLowVal) and aLowVal < bLowVal and aLowIdx < bLowIdx
+
+bearishSMTReversal = not na(aHighVal) and not na(bHighVal) and aHighVal > bHighVal and aHighIdx > bHighIdx
+bearishSMTContinuation = not na(aHighVal) and not na(bHighVal) and aHighVal > bHighVal and aHighIdx < bHighIdx
+
+plotshape(showLabels and bullishSMTReversal, title="Bullish SMT Reversal", style=shape.labelup, location=location.belowbar, color=color.new(color.lime, 0), text="SMT Rev", textcolor=color.white, size=size.tiny)
+plotshape(showLabels and bullishSMTContinuation, title="Bullish SMT Continuation", style=shape.labelup, location=location.belowbar, color=color.new(color.blue, 0), text="SMT Cont", textcolor=color.white, size=size.tiny)
+plotshape(showLabels and bearishSMTReversal, title="Bearish SMT Reversal", style=shape.labeldown, location=location.abovebar, color=color.new(color.red, 0), text="SMT Rev", textcolor=color.white, size=size.tiny)
+plotshape(showLabels and bearishSMTContinuation, title="Bearish SMT Continuation", style=shape.labeldown, location=location.abovebar, color=color.new(color.orange, 0), text="SMT Cont", textcolor=color.white, size=size.tiny)
+
+alertcondition(bullishSMTReversal or bearishSMTReversal or bullishSMTContinuation or bearishSMTContinuation, title="SMT Divergence", message="SMT Divergence detected: check correlated asset confirmation.")
+
+bgcolor(bullishSMTReversal ? color.new(color.lime, 88) : bullishSMTContinuation ? color.new(color.blue, 88) : bearishSMTReversal ? color.new(color.red, 88) : bearishSMTContinuation ? color.new(color.orange, 88) : na)
+
+// --- Optional: tampilkan status di status line untuk debugging ---
+var table statusTable = table.new(position.top_right, 1, 1)
+if barstate.islast
+    table.cell(statusTable, 0, 0, bullishSMTReversal ? "Bullish SMT Reversal" : bullishSMTContinuation ? "Bullish SMT Continuation" : bearishSMTReversal ? "Bearish SMT Reversal" : bearishSMTContinuation ? "Bearish SMT Continuation" : "No SMT", text_color=color.white, bgcolor=color.new(color.black, 0), text_size=size.small)
+
+// --- Catatan penggunaan ---
+// 1. Pilih pair yang berkorelasi dengan aset aktif (contoh: ES vs NQ, EURUSD vs GBPUSD, BTCUSD vs ETHUSD).
+// 2. SMT Reversal: aset yang sedang diperdagangkan membentuk swing point paling baru dan tidak konfirmasi dengan aset korelasi.
+// 3. SMT Continuation: aset korelasi yang lebih dulu membentuk swing point dan aset aktif mengikuti arah yang sama.
+
